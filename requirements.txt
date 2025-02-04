@@ -5,7 +5,7 @@ python-dotenv==1.0.0
 # LangChain (ปรับเวอร์ชันให้รองรับ Pydantic v2)
 langchain-core==0.2.0
 langchain-community==0.2.0
-langchain-openai==0.1.4
+langchain-openai==0.2.0         # Updated to be compatible with langchain-core==0.2.0
 langchain-experimental==0.0.61
 
 # Azure OpenAI
@@ -22,7 +22,7 @@ unstructured-inference==0.8.6
 
 # Image processing
 pillow==10.3.0
-piheif==0.14.0  # Corrected package name
+pillow-heif==0.14.0            # Replaced piheif with pillow-heif
 
 # Data handling
 pandas==2.2.2
