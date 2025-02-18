@@ -4,8 +4,8 @@ python-dotenv==1.0.0
 
 # LangChain (ปรับเวอร์ชันให้รองรับ Pydantic v2)
 langchain-core==0.2.0
-langchain-community==0.2.0
-langchain-openai==0.1.4
+langchain-community
+langchain-openai
 langchain-experimental==0.0.61
 
 # Azure OpenAI
