@@ -36,7 +36,7 @@ def create_chat_model():
         deployment_name=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
         openai_api_version="2024-08-01-preview",
         temperature=0.5,
-        max_tokens=500
+        max_tokens=1000
     )
 
 # สร้างและอัปเดต Vector Store
