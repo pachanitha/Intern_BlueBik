@@ -1,11 +1,10 @@
-# Core dependencies
 streamlit==1.32.0
 python-dotenv==1.0.0
 
-# LangChain (ปรับเวอร์ชันให้รองรับ Pydantic v2)
-langchain-core==0.2.0
+# Update langchain-core to satisfy langchain-experimental
+langchain-core>=0.2.7,<0.3.0
 langchain-community
-langchain-openai
+langchain-openai  # You can omit a strict pin here to let pip choose a compatible version.
 langchain-experimental==0.0.61
 
 # Azure OpenAI
