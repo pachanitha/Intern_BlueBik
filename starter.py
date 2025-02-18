@@ -80,7 +80,7 @@ def add_documents_to_vectorstore(vector_store, documents):
 
 # โหลดข้อมูล cache file
 def load_data_sources():
-    CACHE_FILE = Path("pachanitha/intern_bluebik/main/cached_documents.json")
+    CACHE_FILE = Path("main/cached_documents.json")
     if CACHE_FILE.exists():
         try:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
