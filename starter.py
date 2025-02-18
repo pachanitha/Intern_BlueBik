@@ -365,7 +365,7 @@ def render_chat_history():
 
 # MAIN APP
 def main():
-    st.title("Chat with Bluebik HR & SQL Assistant👩🏻‍💻")
+    st.title("Chat with Bluebik HR👩🏻‍💻")
 
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
