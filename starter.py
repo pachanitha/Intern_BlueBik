@@ -26,7 +26,6 @@ from langchain.schema import Document
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
-
 pytesseract.pytesseract.tesseract_cmd = r"/opt/homebrew/bin/tesseract"
 
 # สร้าง LLM
