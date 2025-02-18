@@ -1,4 +1,3 @@
-# export UNSTRUCTURED_API_KEY="nJ7SOF4k4m3qtfh2zo32RHOCNHB4QQ"
 import streamlit as st
 import os
 import json
@@ -37,7 +36,7 @@ def create_chat_model():
         deployment_name=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
         openai_api_version="2024-08-01-preview",
         temperature=0.5,
-        max_tokens=1000
+        max_tokens=500
     )
 
 # สร้างและอัปเดต Vector Store
@@ -215,6 +214,17 @@ def process_excel(file_path):
     except Exception as e:
         raise ValueError(f"Error processing Excel file: {e}")
 
+# New: Process SQL file
+def process_sql(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            text = f.read().strip()
+        if not text:
+            raise ValueError("SQL file is empty.")
+        return [Document(page_content=text, metadata={"source": Path(file_path).name})]
+    except Exception as e:
+        raise ValueError(f"Error processing SQL file: {e}")
+
 # process_uploaded_files
 def process_uploaded_files(uploaded_files):
     new_docs = []
@@ -224,14 +234,17 @@ def process_uploaded_files(uploaded_files):
             f.write(uploaded_file.getbuffer())
         try:
             file_type, _ = mimetypes.guess_type(uploaded_file.name)
+            file_suffix = Path(uploaded_file.name).suffix.lower()
             processed_docs = []
-            if file_type == "application/pdf":
+            if file_suffix == ".sql":
+                processed_docs = process_sql(temp_file_path)
+            elif file_type == "application/pdf":
                 processed_docs = process_pdf(temp_file_path)
             elif file_type == "text/plain":
                 processed_docs = process_txt(temp_file_path)
             elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 processed_docs = process_docx(temp_file_path)
-            elif file_type in ["image/png","image/jpeg","image/jpg"]:
+            elif file_type in ["image/png", "image/jpeg", "image/jpg"]:
                 processed_docs = process_image(temp_file_path)
             elif file_type == "text/csv":
                 processed_docs = process_csv(temp_file_path)
@@ -262,9 +275,9 @@ def calculate_token_size(text, model_name="gpt-4"):
     except Exception:
         return None
 
-# Prompt: note the instructions now mention that the response may include equations and tables.
-def create_stuff_chain(llm):
-    answer_prompt = ChatPromptTemplate.from_messages([
+# Combined prompt: Chat and SQL in one
+def create_combined_chain(llm):
+    combined_prompt = ChatPromptTemplate.from_messages([
         (
             "system",
             "You are an AI assistant for Bluebik Company's HR department. "
@@ -283,58 +296,41 @@ def create_stuff_chain(llm):
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}")
     ])
-    return create_stuff_documents_chain(llm, answer_prompt, document_variable_name="context")
+    return create_stuff_documents_chain(llm, combined_prompt, document_variable_name="context")
 
-# find_file_in_user_input & filter_docs_by_source
-def find_file_in_user_input(user_input: str, all_docs: list[Document]) -> str | None:
-    user_lower = user_input.lower()
-    for doc in all_docs:
-        doc_name = doc.metadata.get("source", "").lower().strip()
-        if doc_name and doc_name in user_lower:
-            return doc.metadata["source"]
-    return None
-
-def filter_docs_by_source(docs, source: str):
-    source_lower = source.lower()
-    return [doc for doc in docs if doc.metadata.get("source","").lower() == source_lower]
-
-# Modified render_markdown_response: now we preserve equation syntax and backslashes.
-def render_markdown_response(response_text: str) -> str:
-    # Instead of removing $$ or backslashes, we only clean up redundant whitespace.
-    import re
-    response_text = response_text.strip()
-    response_text = re.sub(r"\n\s*\n+", "\n\n", response_text)
-    return response_text
-
-# get_response
-def get_response(user_input: str):
+# Unified response function
+def get_combined_response(user_input: str):
     if "vector_store" not in st.session_state or not st.session_state.vector_store:
         return "Vector store is not initialized. Please upload relevant documents or rely on the existing cache."
 
     try:
         all_docs = list(st.session_state.vector_store.docstore._dict.values())
-        target_file = find_file_in_user_input(user_input, all_docs)
+        target_file = None
+        # Check if the user explicitly mentioned a file name
+        for doc in all_docs:
+            doc_name = doc.metadata.get("source", "").lower().strip()
+            if doc_name and doc_name in user_input.lower():
+                target_file = doc.metadata["source"]
+                break
 
         if target_file:
-            file_docs = filter_docs_by_source(all_docs, target_file)
+            file_docs = [doc for doc in all_docs if doc.metadata.get("source", "").lower() == target_file.lower()]
             if not file_docs:
                 return f"File {target_file} not found in vector store documents."
             mini_store = FAISS.from_documents(file_docs, st.session_state.vector_store.embeddings)
-            file_retriever = mini_store.as_retriever(search_kwargs={"k": 10})
-            search_context = file_retriever.get_relevant_documents(user_input)
+            retriever = mini_store.as_retriever(search_kwargs={"k": 10})
+            search_context = retriever.get_relevant_documents(user_input)
         else:
-            general_retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 10})
-            search_context = general_retriever.get_relevant_documents(user_input)
+            retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 10})
+            search_context = retriever.get_relevant_documents(user_input)
 
         if not search_context:
             return "I couldn't find any relevant context. Could you please provide more details or upload the necessary document?"
 
-        docs_json = {
-            "documents": []
-        }
+        docs_json = {"documents": []}
         for doc in search_context:
             docs_json["documents"].append({
-                "source": doc.metadata.get("source","Unknown"),
+                "source": doc.metadata.get("source", "Unknown"),
                 "content": doc.page_content
             })
 
@@ -344,26 +340,24 @@ def get_response(user_input: str):
         )
 
         llm = create_chat_model()
-        doc_chain = create_stuff_chain(llm)
-        outputs = doc_chain.invoke({
+        combined_chain = create_combined_chain(llm)
+        outputs = combined_chain.invoke({
             "input": user_input,
             "chat_history": st.session_state.chat_history,
             "context": [json_doc]
         })
 
         response_text = str(outputs)
-        return render_markdown_response(response_text)
-
+        return response_text.strip()
     except Exception as e:
         traceback.print_exc()
         return f"An error occurred: {str(e)}"
 
-# render chat
+# render chat history
 def render_chat_history():
     for msg in st.session_state.chat_history:
         if isinstance(msg, AIMessage):
             with st.chat_message("AI"):
-                # st.markdown supports equations and table formatting directly.
                 st.markdown(msg.content)
         else:
             with st.chat_message("Human"):
@@ -371,7 +365,7 @@ def render_chat_history():
 
 # MAIN APP
 def main():
-    st.title("Chat with Bluebik HR👩🏻‍💻")
+    st.title("Chat with Bluebik HR & SQL Assistant👩🏻‍💻")
 
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = None
@@ -388,8 +382,8 @@ def main():
 
     st.sidebar.header("อัพโหลดไฟล์เพิ่มเติม📁")
     uploaded_files = st.sidebar.file_uploader(
-        label="อัพโหลด (txt, pdf, docx, csv, xlsx, png, jpeg)",
-        type=["txt","pdf","docx","csv","xlsx","png","jpeg","jpg"],
+        label="อัพโหลด (txt, pdf, docx, csv, xlsx, png, jpeg, sql)",
+        type=["txt", "pdf", "docx", "csv", "xlsx", "png", "jpeg", "sql", "jpg"],
         accept_multiple_files=True
     )
 
@@ -417,10 +411,10 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [AIMessage(content="สวัสดี! ฉันสามารถช่วยอะไรคุณได้บ้างวันนี้?")]
 
-    user_input = st.chat_input("ถามคำถามของคุณ...")
+    user_input = st.chat_input("ถามคำถามของคุณหรือระบุความต้องการ SQL...")
     if user_input and user_input.strip():
         with st.spinner("กำลังประมวลผลคำถามของคุณ..."):
-            response = get_response(user_input)
+            response = get_combined_response(user_input)
             st.session_state.chat_history.append(HumanMessage(content=user_input))
             st.session_state.chat_history.append(AIMessage(content=response))
 

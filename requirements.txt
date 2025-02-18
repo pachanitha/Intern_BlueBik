@@ -1,41 +1,25 @@
 streamlit==1.32.0
 python-dotenv==1.0.0
-
-# LangChain packages
-langchain-core>=0.2.7,<0.3.0
-langchain-community==0.2.19
-langchain-openai==0.3.6
+langchain-core==0.2.0
+langchain-community==0.2.0
+langchain-openai==0.1.4
 langchain-experimental==0.0.61
-
-# Azure OpenAI
 openai==1.30.1
 azure-core==1.30.1
-
-# Document processing
-pymupdf==1.24.10
+pymupdf==1.24.4
 pymupdf4llm==0.0.17
 docx2txt==0.8
 pytesseract==0.3.10
 unstructured==0.16.17
 unstructured-inference==0.8.6
-
-# Image processing
 pillow==10.3.0
 pillow-heif==0.14.0
-
-# Data handling
 pandas==2.2.2
 numpy==1.26.4
-
-# Pydantic & Type hints (ต้องใช้เวอร์ชัน 2.x)
 pydantic==2.7.1
 pydantic-settings==2.2.1
 typing-extensions==4.11.0
-
-# Vector database
 faiss-cpu==1.8.0
-
-# Additional utilities
-tiktoken>=0.7,<1.0
+tiktoken==0.6.0
 python-multipart==0.0.9
 openpyxl
