@@ -12,6 +12,7 @@ import mimetypes
 import re
 import traceback
 import tiktoken
+from altair.vegalite.v4.api import Chart
 
 # LangChain / Google Generative AI / etc.
 from langchain.schema import AIMessage, HumanMessage
